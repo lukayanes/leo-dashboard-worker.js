@@ -1,0 +1,11 @@
+# Cloudflare Worker: Leo CRM -> Summit KPI Dashboard API
+# Deployed from GitHub via Workers Builds. Set "Root directory" to leo-worker in the Cloudflare build settings.
+name = "summit-leo-dashboard-api"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Secrets are NOT stored here. Add in Cloudflare -> Worker -> Settings -> Variables and Secrets:
+#   LEO_API_KEY   (required)
+# Optional, only if you use those features: ZILLOW_API_KEY, REALTOR_API_KEY, SCRAPER_API_KEY,
+# and a KV binding named SELLER_PHOTOS for the seller-photo gallery.
