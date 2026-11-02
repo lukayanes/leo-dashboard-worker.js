@@ -1,4 +1,4 @@
-# summit-leo-dashboard-api
+# leo-dashboard-worker-js
 
 Cloudflare Worker that reads the Leo CRM API and serves the KPI dashboard's
 `/api/pipelines`, `/api/opportunities`, `/api/pipeline-stats`, `/api/lead-sources`
