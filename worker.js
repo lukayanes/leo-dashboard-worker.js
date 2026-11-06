@@ -9,6 +9,7 @@
  *   /api/pipeline-stats   -> computed from the two above (unchanged code)
  *   /api/lead-sources     -> computed from opportunities (unchanged code)
  *   /api/leo/summary      -> passthrough to Leo's Reports > Summary (?from=YYYY-MM-DD&to=YYYY-MM-DD)
+ *   /api/leo/offers       -> offers made + contracts sent in a date range, each dated (Reports > Drill)
  * Everything else (Zillow, Realtor, Redfin, Rentometer, seller photos) is carried over unchanged.
  *
  * Secrets: LEO_API_KEY (required). Optional: ZILLOW_API_KEY, REALTOR_API_KEY, SCRAPER_API_KEY,
@@ -182,6 +183,29 @@ async function fetchAllOpportunities(env) {
   };
   setCacheEntry(cache.opportunities, result);
   return result;
+}
+
+/**
+ * Offers for a date range, from Leo Reports > Drill: metric=offers (offer made) and metric=sent (contract sent),
+ * each row dated when it happened. Cached per range for 5 minutes (reports are limited to 10 calls/min).
+ */
+let offersCache = {};
+async function fetchLeoOffers(env, from, to) {
+  const key = from + '|' + to;
+  const hit = offersCache[key];
+  if (hit && (Date.now() - hit.timestamp) < CACHE_TTL) return hit.data;
+  const q = m => `/reports/drill?metric=${m}&limit=500&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  const offers = await leoRequest(q('offers'), env);
+  const sent = await leoRequest(q('sent'), env);
+  const data = {
+    from, to,
+    offers: offers.rows || [], offersTotal: offers.total, offersTruncated: !!offers.truncated,
+    sent: sent.rows || [], sentTotal: sent.total, sentTruncated: !!sent.truncated,
+    source: 'leo', generatedAt: new Date().toISOString(),
+  };
+  offersCache[key] = { data, timestamp: Date.now() };
+  if (Object.keys(offersCache).length > 20) offersCache = { [key]: offersCache[key] };
+  return data;
 }
 
 /**
@@ -2563,6 +2587,12 @@ export default {
         const from = url.searchParams.get('from'), to = url.searchParams.get('to');
         if (!from || !to) return errorResponse('from and to (YYYY-MM-DD) are required');
         return jsonResponse(await fetchLeoSummary(env, from, to));
+      }
+
+      if (pathname === '/api/leo/offers') {
+        const from = url.searchParams.get('from'), to = url.searchParams.get('to');
+        if (!from || !to) return errorResponse('from and to (YYYY-MM-DD) are required');
+        return jsonResponse(await fetchLeoOffers(env, from, to));
       }
 
       if (pathname === '/api/pipelines') {
